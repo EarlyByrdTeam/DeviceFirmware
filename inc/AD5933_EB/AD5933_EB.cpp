@@ -10,20 +10,20 @@ AD5933_EB::AD5933_EB()
 
 bool AD5933_EB::reset(void)
 {
-    byte rst_seq[2] = {0x81, 0x10}; //reset sequence
+    byte rst_seq[2] = {CTRL_REG2, 0x10}; //reset sequence
     return send(rst_seq, 2);
 }
 
 bool AD5933_EB::set_freq_start(unsigned long freq)
 {
-    byte reg[3] = {0x82, 0x83, 0x84};
+    byte reg[3] = {START_FREQ_1, START_FREQ_2, START_FREQ_3};
     _freq_start = freq;
     return freq_setting(reg, freq);
 }
 
 bool AD5933_EB::set_freq_delta(unsigned long delta)
 {
-    byte reg[3] = {0x85, 0x86, 0x87};
+    byte reg[3] = {INC_FREQ_1, INC_FREQ_2, INC_FREQ_3};
     _freq_delta = delta;
     return freq_setting(reg, delta);
 }
@@ -31,7 +31,7 @@ bool AD5933_EB::set_freq_delta(unsigned long delta)
 bool AD5933_EB::set_incr_num(int num_incr)
 {
     byte code[2];
-    byte reg[2] = {0x88, 0x89};
+    byte reg[2] = {NUM_INC_1, NUM_INC_2};
     byte packet[2];
 
     _num_incr = num_incr;
@@ -53,7 +53,7 @@ bool AD5933_EB::set_incr_num(int num_incr)
 
 bool AD5933_EB::set_measurement_delay(void)
 {
-    byte reg[2] = {0x8A, 0x8B};
+    byte reg[2] = {NUM_SCYCLES_1, NUM_SCYCLES_2};
     byte code[2];
     byte packet[2];
     float settling_time = 0.001; //1ms
@@ -108,10 +108,16 @@ bool AD5933_EB::freq_setting(byte reg[], long setting)
 
 bool AD5933_EB::init(void)
 {
-    byte init_seq[2] = {0x80, 0x11};
+    byte init_seq[2] = {CTRL_REG1, 0x11};
     bool res = send(init_seq, 2);
     delay(500);
     return res;
+}
+
+bool AD5933_EB::standby(void)
+{
+    byte standby_seq[2] = {CTRL_REG1, CTRL_STANDBY_MODE};
+    return send(standby_seq, 2);
 }
 
 bool AD5933_EB::send(byte data[], int size)
