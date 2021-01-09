@@ -1,6 +1,7 @@
 #include "Arduino.h"
 #include "AD5933_EB.h"
 #include "Wire.h"
+#include "math.h"
 
 AD5933_EB::AD5933_EB()
 {
@@ -9,49 +10,107 @@ AD5933_EB::AD5933_EB()
 
 bool AD5933_EB::reset(void)
 {
-    Wire.beginTransmission(AD5933_ADDR);
     byte rst_seq[2] = {0x81, 0x10}; //reset sequence
-    Wire.write(rst_seq, 2);         //reset the AD5933
+    return send(rst_seq, 2);
+}
+
+bool AD5933_EB::set_freq_start(unsigned long freq)
+{
+    byte reg[3] = {0x82, 0x83, 0x84};
+    _freq_start = freq;
+    return freq_setting(reg, freq);
+}
+
+bool AD5933_EB::set_freq_delta(unsigned long delta)
+{
+    byte reg[3] = {0x85, 0x86, 0x87};
+    _freq_delta = delta;
+    return freq_setting(reg, delta);
+}
+
+bool AD5933_EB::set_incr_num(int num_incr)
+{
+    byte code[2];
+    byte reg[2] = {0x88, 0x89};
+    byte packet[2];
+
+    _num_incr = num_incr;
+    code[0] = (num_incr & 0xFF);
+    code[1] = ((num_incr >> 8) & 0xFF);
+
+    Serial.print(code[0], HEX);
+    Serial.println(code[1], HEX);
+
+    for (int i = 0; i < 2; i++)
+    {
+        packet[0] = reg[i];
+        packet[1] = code[i];
+        if (!send(packet, 2))
+            return false;
+    }
+    return true;
+}
+
+bool AD5933_EB::set_measurement_delay(void)
+{
+    byte reg[2] = {0x8A, 0x8B};
+    byte code[2];
+    byte packet[2];
+    float settling_time = 0.001; //1ms
+    unsigned long f_max;
+    unsigned long D;
+
+    f_max = _freq_start + (_freq_delta * _num_incr);
+
+    _freq_max = f_max;
+    D = round(settling_time * f_max);
+    code[0] = (D & 0xFF);
+    code[1] = ((D >> 8) & 0xFF);
+    Serial.println(D, DEC);
+    Serial.print(code[0], HEX);
+    Serial.println(code[1], HEX);
+
+    for (int i = 0; i < 2; i++)
+    {
+        packet[0] = reg[i];
+        packet[1] = code[i];
+        if (!send(packet, 2))
+            return false;
+    }
+    return true;
+}
+bool AD5933_EB::freq_setting(byte reg[], long setting)
+{
+    byte code[3];
+    byte packet[2];
+    //Start freq code:= (required_req/(MCLK/4))*2^27
+    //Freq incr code:= (required_delta/(MCLK/4))*2^27
+    long D = round(setting / (mclk / 4.0) * pow(2, 27));
+    //split into 3 bytes
+    code[0] = (D >> 16) & 0xFF;
+    code[1] = (D >> 8) & 0xFF;
+    code[2] = D & 0xFF;
+
+    Serial.print(code[0], HEX);
+    Serial.print(code[1], HEX);
+    Serial.println(code[2], HEX);
+
+    for (int i = 0; i < 3; i++)
+    {
+        packet[0] = reg[i];
+        packet[1] = code[i];
+        if (!send(packet, 2))
+            return false;
+    }
+    return true;
+}
+
+bool AD5933_EB::send(byte data[], int size)
+{
+    Wire.beginTransmission(AD5933_ADDR);
+    Wire.write(data, size);
     if (Wire.endTransmission() != 0x00)
         return false;
     else
         return true;
-}
-
-void AD5933_EB::set_start_freq(float freq)
-{
-    //Start freq code:= (required_req/(MCLK/4))*2^27
-    char code_buf[24];
-    _start_freq = freq;
-    // int D = int(freq / (MCLK / 4.0)) * pow(2, 27);
-    long int D = int(1950 / (16776000 / 4.0)) * pow(2, 27);
-    Serial.println(D, DEC);
-    String str = String(D, HEX);
-    Serial.println(str);
-    str.toCharArray(code_buf, 24);
-    int freq_code = str2hex(code_buf);
-    Serial.println(freq_code);
-}
-
-int AD5933_EB::str2hex(char *s)
-{
-    int x = 0;
-    for (;;)
-    {
-        char c = *s;
-        if (c >= '0' && c <= '9')
-        {
-            x *= 16;
-            x += c - '0';
-        }
-        else if (c >= 'A' && c <= 'F')
-        {
-            x *= 16;
-            x += (c - 'A') + 10;
-        }
-        else
-            break;
-        s++;
-    }
-    return x;
 }
