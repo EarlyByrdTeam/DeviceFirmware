@@ -21,6 +21,7 @@ public:
   bool set_freq_delta(unsigned long delta);
   bool set_incr_num(int num_incr);
   bool set_measurement_delay(void);
+  bool init(void);
 
 private:
   unsigned long _freq_start;

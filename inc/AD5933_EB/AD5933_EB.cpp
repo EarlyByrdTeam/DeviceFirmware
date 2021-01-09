@@ -79,6 +79,7 @@ bool AD5933_EB::set_measurement_delay(void)
     }
     return true;
 }
+
 bool AD5933_EB::freq_setting(byte reg[], long setting)
 {
     byte code[3];
@@ -103,6 +104,14 @@ bool AD5933_EB::freq_setting(byte reg[], long setting)
             return false;
     }
     return true;
+}
+
+bool AD5933_EB::init(void)
+{
+    byte init_seq[2] = {0x80, 0x11};
+    bool res = send(init_seq, 2);
+    delay(500);
+    return res;
 }
 
 bool AD5933_EB::send(byte data[], int size)
